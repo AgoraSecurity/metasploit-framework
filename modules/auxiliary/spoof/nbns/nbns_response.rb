@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Capture
 
   attr_accessor :sock, :thread
@@ -32,7 +29,7 @@ class MetasploitModule < Msf::Auxiliary
         ],
       'Actions'		=>
         [
-          [ 'Service' ]
+          [ 'Service', 'Description' => 'Run NBNS spoofing service' ]
         ],
       'PassiveActions' =>
         [
@@ -84,7 +81,7 @@ class MetasploitModule < Msf::Auxiliary
 
     return unless nbnsq_decodedname =~ /#{datastore['REGEX'].source}/i
 
-    vprint_good("#{rhost.ljust 16} nbns - #{nbnsq_decodedname} matches regex, responding with #{spoof}")
+    print_good("#{rhost.ljust 16} nbns - #{nbnsq_decodedname} matches regex, responding with #{spoof}")
 
     vprint_status("transid:        #{nbnsq_transid.unpack('H4')}")
     vprint_status("tlags:          #{nbnsq_flags.unpack('B16')}")
@@ -178,5 +175,4 @@ class MetasploitModule < Msf::Auxiliary
     end
     close_pcap
   end
-
 end

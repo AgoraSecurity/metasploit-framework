@@ -1,13 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-require 'rex'
-
 class MetasploitModule < Msf::Post
-
   include Msf::Post::Windows::Priv
 
   def initialize(info={})
@@ -26,13 +22,13 @@ class MetasploitModule < Msf::Post
   end
 
   def run
-    usr_tbl = Rex::Ui::Text::Table.new(
+    usr_tbl = Rex::Text::Table.new(
       'Header'  => 'Current User',
       'Indent'  => 1,
       'Columns' => ['Is Admin', 'Is System', 'Is In Local Admin Group', 'UAC Enabled', 'Foreground ID', 'UID']
     )
 
-    privs_tbl = Rex::Ui::Text::Table.new(
+    privs_tbl = Rex::Text::Table.new(
       'Header' =>"Windows Privileges",
       'Indent' => 1,
       'Columns' => ['Name']
@@ -43,7 +39,7 @@ class MetasploitModule < Msf::Post
     admin       = is_admin? ? 'True' : 'False'
     admin_group = is_in_admin_group? ? 'True' : 'False'
     sys         = is_system? ? 'True' : 'False'
-    uid         = client.sys.config.getuid.inspect
+    uid         = client.sys.config.getuid
     begin
       # Older OS might not have this (min support is XP)
       fid = client.railgun.kernel32.WTSGetActiveConsoleSessionId["return"]
@@ -62,5 +58,4 @@ class MetasploitModule < Msf::Post
     print_line(usr_tbl.to_s)
     print_line(privs_tbl.to_s)
   end
-
 end

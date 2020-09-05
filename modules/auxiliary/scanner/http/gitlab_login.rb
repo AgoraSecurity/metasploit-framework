@@ -1,9 +1,8 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
 require 'metasploit/framework/credential_collection'
 require 'metasploit/framework/login_scanner/gitlab'
 
@@ -28,14 +27,14 @@ class MetasploitModule < Msf::Auxiliary
     register_options(
       [
         Opt::RPORT(80),
-        OptString.new('USERNAME', [ true, 'The username to test', 'root' ]),
-        OptString.new('PASSWORD', [ true, 'The password to test', '5iveL!fe' ]),
+        OptString.new('HttpUsername', [ true, 'The username to test', 'root' ]),
+        OptString.new('HttpPassword', [ true, 'The password to test', '5iveL!fe' ]),
         OptString.new('TARGETURI', [true, 'The path to GitLab', '/'])
-      ], self.class)
+      ])
+
+    deregister_options('PASSWORD_SPRAY')
 
     register_autofilter_ports([ 80, 443 ])
-
-    deregister_options('RHOST')
   end
 
   def run_host(ip)
@@ -58,10 +57,10 @@ class MetasploitModule < Msf::Auxiliary
     cred_collection = Metasploit::Framework::CredentialCollection.new(
       blank_passwords: datastore['BLANK_PASSWORDS'],
       pass_file: datastore['PASS_FILE'],
-      password: datastore['PASSWORD'],
+      password: datastore['HttpPassword'],
       user_file: datastore['USER_FILE'],
       userpass_file: datastore['USERPASS_FILE'],
-      username: datastore['USERNAME'],
+      username: datastore['HttpUsername'],
       user_as_pass: datastore['USER_AS_PASS']
     )
 
@@ -86,7 +85,7 @@ class MetasploitModule < Msf::Auxiliary
         credential_data[:core] = credential_core
         create_credential_login(credential_data)
 
-        print_good "#{ip}:#{rport} - LOGIN SUCCESSFUL: #{result.credential}"
+        print_good "#{ip}:#{rport} - Login Successful: #{result.credential}"
       else
         invalidate_login(credential_data)
         vprint_error "#{ip}:#{rport} - LOGIN FAILED: #{result.credential} (#{result.status})"

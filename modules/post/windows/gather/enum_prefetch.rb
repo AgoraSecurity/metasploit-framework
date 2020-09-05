@@ -1,10 +1,7 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-
-require 'rex'
-require 'msf/core'
 
 class MetasploitModule < Msf::Post
   include Msf::Post::File
@@ -168,7 +165,7 @@ class MetasploitModule < Msf::Post
       return nil
     end
 
-    table = Rex::Ui::Text::Table.new(
+    table = Rex::Text::Table.new(
       'Header'  => "Prefetch Information",
       'Indent'  => 1,
       'Columns' =>

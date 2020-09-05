@@ -1,5 +1,6 @@
 
 require 'msf/core'
+require 'rex/post/meterpreter/extensions/stdapi/command_ids'
 require 'rex'
 
 lib = File.join(Msf::Config.install_root, "test", "lib")
@@ -21,6 +22,7 @@ class MetasploitModule < Msf::Post
       ))
     register_options(
       [
+        OptBool.new("AddEntropy" , [false, "Add entropy token to file and directory names.", false]),
         OptString.new("BaseFileName" , [true, "File/dir base name", "meterpreter-test"])
       ], self.class)
   end
@@ -38,7 +40,7 @@ class MetasploitModule < Msf::Post
     if (stat and stat.directory?)
       tmp = "/tmp"
     else
-      tmp = session.fs.file.expand_path("%TEMP%")
+      tmp = session.sys.config.getenv('TEMP')
     end
     vprint_status("Setup: changing working directory to #{tmp}")
     session.fs.dir.chdir(tmp)
@@ -51,7 +53,7 @@ class MetasploitModule < Msf::Post
     vprint_status("Starting process tests")
     pid = nil
 
-    if session.commands.include? "stdapi_sys_process_getpid"
+    if session.commands.include? Rex::Post::Meterpreter::Extensions::Stdapi::COMMAND_ID_STDAPI_SYS_PROCESS_GETPID
       it "should return its own process id" do
         pid = session.sys.process.getpid
         vprint_status("Pid: #{pid}")
@@ -65,7 +67,7 @@ class MetasploitModule < Msf::Post
       ret = true
       list = session.sys.process.get_processes
       ret &&= (list && list.length > 0)
-      if session.commands.include? "stdapi_sys_process_getpid"
+      if session.commands.include? Rex::Post::Meterpreter::Extensions::Stdapi::COMMAND_ID_STDAPI_SYS_PROCESS_GETPID
         pid ||= session.sys.process.getpid
         process = list.find{ |p| p['pid'] == pid }
         vprint_status("PID info: #{process.inspect}")
@@ -94,7 +96,7 @@ class MetasploitModule < Msf::Post
   end
 
   def test_net_config
-    unless (session.commands.include? "stdapi_net_config_get_interfaces")
+    unless (session.commands.include? Rex::Post::Meterpreter::Extensions::Stdapi::COMMAND_ID_STDAPI_NET_CONFIG_GET_INTERFACES)
       vprint_status("This meterpreter does not implement get_interfaces, skipping tests")
       return
     end
@@ -120,7 +122,7 @@ class MetasploitModule < Msf::Post
       res
     end
 
-    if session.commands.include?("stdapi_net_config_get_routes")
+    if session.commands.include?(Rex::Post::Meterpreter::Extensions::Stdapi::COMMAND_ID_STDAPI_NET_CONFIG_GET_INTERFACES)
       it "should return network routes" do
         routes = session.net.config.get_routes
 
@@ -132,6 +134,11 @@ class MetasploitModule < Msf::Post
 
   def test_fs
     vprint_status("Starting filesystem tests")
+    if datastore["AddEntropy"]
+      entropy_value = '-' + ('a'..'z').to_a.shuffle[0,8].join
+    else
+      entropy_value = ""
+    end
 
     it "should return the proper directory separator" do
       sysinfo = session.sys.config.sysinfo
@@ -167,7 +174,8 @@ class MetasploitModule < Msf::Post
     end
 
     it "should create and remove a dir" do
-      dir_name = "#{datastore["BaseFileName"]}-dir"
+      dir_name = "#{datastore["BaseFileName"]}-dir#{entropy_value}"
+      vprint_status("Directory Name: #{dir_name}")
       session.fs.dir.rmdir(dir_name) rescue nil
       res = create_directory(dir_name)
       if (res)
@@ -180,7 +188,8 @@ class MetasploitModule < Msf::Post
     end
 
     it "should change directories" do
-      dir_name = "#{datastore["BaseFileName"]}-dir"
+      dir_name = "#{datastore["BaseFileName"]}-dir#{entropy_value}"
+      vprint_status("Directory Name: #{dir_name}")
       session.fs.dir.rmdir(dir_name) rescue nil
       res = create_directory(dir_name)
 
@@ -208,7 +217,8 @@ class MetasploitModule < Msf::Post
 
     it "should create and remove files" do
       res = true
-      file_name = datastore["BaseFileName"]
+      file_name = "#{datastore["BaseFileName"]}#{entropy_value}"
+      vprint_status("File Name: #{file_name}")
       res &&= session.fs.file.open(file_name, "wb") { |fd|
         fd.write("test")
       }
@@ -228,7 +238,8 @@ class MetasploitModule < Msf::Post
 
     it "should upload a file" do
       res = true
-      remote = "#{datastore["BaseFileName"]}-file.txt"
+      remote = "#{datastore["BaseFileName"]}-file#{entropy_value}.txt"
+      vprint_status("Remote File Name: #{remote}")
       local  = __FILE__
       vprint_status("uploading")
       session.fs.file.upload_file(remote, local)
@@ -251,36 +262,65 @@ class MetasploitModule < Msf::Post
       session.fs.file.rm(remote)
       res
     end
-    if session.commands.include?("stdapi_fs_file_move")
-      it "should move files" do
-        res = true
-        src_name = datastore["BaseFileName"]
-        dst_name = "#{datastore["BaseFileName"]}-moved"
 
-        # Make sure we don't have leftovers from a previous run
-        session.fs.file.rm(src_name) rescue nil
-        session.fs.file.rm(dst_name) rescue nil
+    it "should move files" do
+      res = true
+      src_name = "#{datastore["BaseFileName"]}#{entropy_value}"
+      vprint_status("Source File Name: #{src_name}")
+      dst_name = "#{src_name}-moved"
+      vprint_status("Destination File Name: #{dst_name}")
 
-        # touch a new file
-        fd = session.fs.file.open(src_name, "wb")
-        fd.close
+      # Make sure we don't have leftovers from a previous run
+      session.fs.file.rm(src_name) rescue nil
+      session.fs.file.rm(dst_name) rescue nil
 
-        session.fs.file.mv(src_name, dst_name)
-        entries = session.fs.dir.entries
-        res &&= entries.include?(dst_name)
-        res &&= !entries.include?(src_name)
+      # touch a new file
+      fd = session.fs.file.open(src_name, "wb")
+      fd.close
 
-        # clean up
-        session.fs.file.rm(src_name) rescue nil
-        session.fs.file.rm(dst_name) rescue nil
+      session.fs.file.mv(src_name, dst_name)
+      entries = session.fs.dir.entries
+      res &&= entries.include?(dst_name)
+      res &&= !entries.include?(src_name)
 
-        res
-      end
+      # clean up
+      session.fs.file.rm(src_name) rescue nil
+      session.fs.file.rm(dst_name) rescue nil
+
+      res
+    end
+
+    it "should copy files" do
+      res = true
+      src_name = "#{datastore["BaseFileName"]}#{entropy_value}"
+      vprint_status("Source File Name: #{src_name}")
+      dst_name = "#{src_name}-copied"
+      vprint_status("Destination File Name: #{dst_name}")
+
+      # Make sure we don't have leftovers from a previous run
+      session.fs.file.rm(src_name) rescue nil
+      session.fs.file.rm(dst_name) rescue nil
+
+      # touch a new file
+      fd = session.fs.file.open(src_name, "wb")
+      fd.close
+
+      session.fs.file.cp(src_name, dst_name)
+      entries = session.fs.dir.entries
+      res &&= entries.include?(dst_name)
+      res &&= entries.include?(src_name)
+
+      # clean up
+      session.fs.file.rm(src_name) rescue nil
+      session.fs.file.rm(dst_name) rescue nil
+
+      res
     end
 
     it "should do md5 and sha1 of files" do
       res = true
-      remote = "#{datastore["BaseFileName"]}-file.txt"
+      remote = "#{datastore["BaseFileName"]}-file#{entropy_value}.txt"
+      vprint_status("Remote File Name: #{remote}")
       local  = __FILE__
       vprint_status("uploading")
       session.fs.file.upload_file(remote, local)

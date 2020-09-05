@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -17,7 +17,7 @@ class MetasploitModule < Msf::Post
   end
 
   def run
-    rtable = Rex::Ui::Text::Table.new(
+    rtable = Rex::Text::Table.new(
       'Header' => 'DNS Cached Entries',
       'Indent' =>  3,
       'Columns' => ['TYPE', 'DOMAIN']
